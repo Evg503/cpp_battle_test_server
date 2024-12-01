@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iosfwd>
 #include "Units/types.hpp"
 
 namespace sw::io
