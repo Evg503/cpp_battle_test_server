@@ -2,7 +2,11 @@
 
 #include "Units/types.hpp"
 
+#include <IO/Events/MarchStarted.hpp>
+#include <IO/Events/UnitAttacked.hpp>
+#include <IO/Events/UnitDied.hpp>
 #include <IO/Events/UnitMoved.hpp>
+#include <algorithm>
 
 template <typename T>
 int sign(T v)
@@ -14,16 +18,55 @@ template <typename Logger>
 struct Item
 {
 	UID_t uid;
+
 	Point pos;
+
 	Point target;
 
-	Item(UID_t uid, Coord_t x, Coord_t y) :
+	Health_t hp;
+
+	Health_t strength;
+
+	Health_t agility;
+	Coord_t range;
+
+	Item(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength, Health_t agility = 0, Health_t range = 0) :
 			uid(uid),
 			pos{x, y},
-			target{x, y}
+			target{x, y},
+			hp(hp),
+			strength(strength),
+			agility(agility),
+			range(range)
 	{}
 
-	void move(Time_t time, Logger& logger)
+	void march(Logger& logger, Point new_target)
+	{
+		target = new_target;
+		logger.log(sw::io::MarchStarted{uid, pos.x, pos.y, target.x, target.y});
+	}
+
+	void attaked(Health_t damage)
+	{
+		hp = std::max(0, hp - damage);
+	}
+
+	void checkHealth(Logger& logger)
+	{
+		if (hp == 0)
+		{
+			logger.log(sw::io::UnitDied{uid});
+		}
+	}
+
+	void attack(Logger& logger, Item* victim, Health_t strange)
+	{
+		victim->attaked(strange);
+		logger.log(sw::io::UnitAttacked{uid, victim->uid, 5, victim->hp});
+		victim->checkHealth(logger);
+	}
+
+	void move(Logger& logger)
 	{
 		Coord_t dx = sign(target.x - pos.x);
 		Coord_t dy = sign(target.y - pos.y);
@@ -31,7 +74,7 @@ struct Item
 		{
 			pos.x += dx;
 			pos.y += dy;
-			logger.log(time, sw::io::UnitMoved{uid, pos.x, pos.y});
+			logger.log(sw::io::UnitMoved{uid, pos.x, pos.y});
 		}
 	}
 };
