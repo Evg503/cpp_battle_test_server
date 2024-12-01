@@ -7,21 +7,21 @@
 #include <fstream>
 #include <iostream>
 
-template <typename Game, typename TestLogger>
+template <template <typename> typename Game, typename TestLogger>
 void testMapSize()
 {
 	TestLogger log;
-	Game game(log);
+	Game<TestLogger> game(log);
 
 	game.createField(4, 9);
 	log.expect("[1] MAP_CREATED width=4 height=9 ");
 }
 
-template <typename Game, typename TestLogger>
+template <template <typename> typename Game, typename TestLogger>
 void testCreateGame()
 {
 	TestLogger log;
-	Game game(log);
+	Game<TestLogger> game(log);
 
 	game.createField(10, 10);
 	log.expect("[1] MAP_CREATED width=10 height=10 ");
@@ -42,11 +42,11 @@ void testCreateGame()
 	log.expect("[1] MARCH_STARTED unitId=3 x=0 y=9 targetX=0 targetY=0 ");
 }
 
-template <typename Game, typename TestLogger>
+template <template <typename> typename Game, typename TestLogger>
 void testGameLoop()
 {
 	TestLogger log;
-	Game game(log);
+	Game<TestLogger> game(log);
 
 	game.createField(10, 10);
 	game.spawn("SWORDMAN", 1, 0, 0, 5, 2);
@@ -87,9 +87,9 @@ void testGameLoop()
 
 int main(int argc, char** argv)
 {
-	testMapSize<Game<AssertEventLog>, AssertEventLog>();
-	testCreateGame<Game<AssertEventLog>, AssertEventLog>();
-	testGameLoop<Game<AssertEventLog>, AssertEventLog>();
+	testMapSize<Game, AssertEventLog>();
+	testCreateGame<Game, AssertEventLog>();
+	testGameLoop<Game, AssertEventLog>();
 
 	std::cout << "TESTS PASSED!!!\n";
 }

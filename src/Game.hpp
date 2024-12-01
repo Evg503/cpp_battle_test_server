@@ -47,8 +47,7 @@ public:
 	{
 		auto idx = _items_index[uid];
 		auto& item = _items[idx];
-		item.target.x = target_x;
-		item.target.y = target_y;
+		item.target = Point{target_x, target_y};
 		_log.log(time, sw::io::MarchStarted{item.uid, item.pos.x, item.pos.y, item.target.x, item.target.y});
 	}
 
