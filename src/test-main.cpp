@@ -1,82 +1,11 @@
+#include "Tests/AssertLog.hpp"
 #include "Units/types.hpp"
+#include "Game.hpp"
 
-#include <IO/Commands/CreateMap.hpp>
-#include <IO/Commands/March.hpp>
-#include <IO/Commands/SpawnHunter.hpp>
-#include <IO/Commands/SpawnSwordsman.hpp>
-#include <IO/Events/MapCreated.hpp>
-#include <IO/Events/MarchEnded.hpp>
-#include <IO/Events/MarchStarted.hpp>
-#include <IO/Events/UnitAttacked.hpp>
-#include <IO/Events/UnitDied.hpp>
-#include <IO/Events/UnitMoved.hpp>
-#include <IO/Events/UnitSpawned.hpp>
-#include <IO/System/CommandParser.hpp>
-#include <IO/System/EventLog.hpp>
-#include <IO/System/PrintDebug.hpp>
 #include <cassert>
 #include <deque>
 #include <fstream>
 #include <iostream>
-
-class PrintFieldVisitor
-{
-private:
-	std::ostream& _stream;
-
-public:
-	explicit PrintFieldVisitor(std::ostream& stream) :
-			_stream(stream)
-	{}
-
-	template <typename T>
-	void visit(const char* name, const T& value)
-	{
-		_stream << name << "=" << value << ' ';
-	}
-};
-
-class AssertEventLog
-{
-public:
-	template <class TEvent>
-	void log(uint64_t tick, TEvent&& event)
-	{
-		std::stringstream str;
-		str << "[" << tick << "] " << TEvent::Name << " ";
-		PrintFieldVisitor visitor(str);
-		event.visit(visitor);
-
-		_last_lines.push_back(str.str());
-	}
-
-	void expect(const char* exp)
-	{
-		if (_last_lines.empty())
-		{
-			std::cerr << "Expected \"" << exp << "\" but no lines" << std::endl;
-			assert(false);
-		}
-
-		if (_last_lines.front() != exp)
-		{
-			std::cerr << "Expected \"" << exp << "\" != \"" << _last_lines.front() << "\"" << std::endl;
-			assert(false);
-		}
-		_last_lines.pop_front();
-	}
-
-	void forget()
-	{
-		_last_lines.clear();
-	}
-    ~AssertEventLog()
-    {
-        assert(_last_lines.empty());
-    }
-private:
-	std::deque<std::string> _last_lines;
-};
 
 template <typename Game, typename TestLogger>
 void testMapSize()
@@ -138,11 +67,12 @@ void testGameLoop()
 	log.expect("[3] UNIT_MOVED unitId=2 x=7 y=0 ");
 	log.expect("[3] UNIT_MOVED unitId=3 x=0 y=7 ");
 
-    /*
-[4] UNIT_MOVED unitId=1 x=3 y=0 
-[4] UNIT_ATTACKED attackerUnitId=2 targetUnitId=1 damage=5 targetHp=0 
-[4] UNIT_DIED unitId=1 
-[4] UNIT_MOVED unitId=3 x=0 y=6 
+	// game.update();
+	// log.expect("[4] UNIT_MOVED unitId=1 x=3 y=0 ");
+	// log.expect("[4] UNIT_ATTACKED attackerUnitId=2 targetUnitId=1 damage=5 targetHp=0 ");
+	// log.expect("[4] UNIT_DIED unitId=1 ");
+	// log.expect("[4] UNIT_MOVED unitId=3 x=0 y=6 ");
+	/*
 [5] UNIT_MOVED unitId=2 x=6 y=0 
 [5] UNIT_MOVED unitId=3 x=0 y=5 
 [6] UNIT_MOVED unitId=2 x=5 y=0 
@@ -154,91 +84,6 @@ void testGameLoop()
 
      */
 }
-
-template <typename T>
-int sign(T v)
-{
-	return (T(0) < v) - (v < T(0));
-}
-
-template <typename Logger>
-class Game
-{
-	inline static std::unordered_map<std::string, std::string> klasses = {
-		{"SWORDMAN", "Swordsman"},
-		{"HUNTER", "Hunter"},
-	};
-
-public:
-	Game(Logger& log) :
-			_log(log)
-	{}
-
-	void createField(Coord_t W, Coord_t H)
-	{
-		_log.log(time, sw::io::MapCreated{W, H});
-	}
-
-	void spawn(const char* klass, UID_t uid, Coord_t x, Coord_t y, ...)
-	{
-		_items_index[uid] = _items.size();
-		auto& item = _items.emplace_back(uid, x, y, x, y);
-		_log.log(time, sw::io::UnitSpawned{item.uid, klasses[klass], item.x, item.y});
-	}
-
-	void march(UID_t uid, Coord_t target_x, Coord_t target_y)
-	{
-		auto idx = _items_index[uid];
-		auto& item = _items[idx];
-		item.target_x = target_x;
-		item.target_y = target_y;
-		_log.log(time, sw::io::MarchStarted{item.uid, item.x, item.y, item.target_x, item.target_y});
-	}
-
-	void update()
-	{
-		time += 1;
-		for (auto& item : _items)
-		{
-			move(item);
-		}
-	}
-
-private:
-	struct Item
-	{
-		UID_t uid;
-		Coord_t x;
-		Coord_t y;
-		Coord_t target_x;
-		Coord_t target_y;
-
-		Item(UID_t uid, Coord_t x, Coord_t y, Coord_t target_x, Coord_t target_y) :
-				uid(uid),
-				x(x),
-				y(y),
-				target_x(target_x),
-				target_y(target_y)
-		{}
-	};
-
-	void move(Item& item)
-	{
-		Coord_t dx = sign(item.target_x - item.x);
-		Coord_t dy = sign(item.target_y - item.y);
-		if (dx != 0 || dy != 0)
-		{
-			item.x += dx;
-			item.y += dy;
-			_log.log(time, sw::io::UnitMoved{item.uid, item.x, item.y});
-		}
-	}
-
-	Time_t time = 1;
-	Logger& _log;
-	std::vector<Item> _items;
-	std::unordered_map<UID_t, size_t> _items_index;
-};
 
 int main(int argc, char** argv)
 {
