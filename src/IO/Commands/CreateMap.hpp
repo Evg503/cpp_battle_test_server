@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <iosfwd>
+#include "Units/types.hpp"
 
 namespace sw::io
 {
@@ -9,8 +10,8 @@ namespace sw::io
 	{
 		constexpr static const char* Name = "CREATE_MAP";
 
-		uint32_t width{};
-		uint32_t height{};
+		Coord_t width{};
+		Coord_t height{};
 
 		template <typename Visitor>
 		void visit(Visitor& visitor)

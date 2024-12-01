@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdint>
 #include <string>
+#include "Units/types.hpp"
 
 namespace sw::io
 {
@@ -9,10 +9,10 @@ namespace sw::io
 	{
 		constexpr static const char* Name = "UNIT_SPAWNED";
 
-		uint32_t unitId{};
+		UID_t unitId{};
 		std::string unitType{};
-		uint32_t x{};
-		uint32_t y{};
+		Coord_t  x{};
+		Coord_t  y{};
 
 		template <typename Visitor>
 		void visit(Visitor& visitor)

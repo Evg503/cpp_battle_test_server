@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cstdint>
-#include <string>
+#include "Units/types.hpp"
 
 namespace sw::io
 {
@@ -9,10 +8,10 @@ namespace sw::io
 	{
 		constexpr static const char* Name = "UNIT_ATTACKED";
 
-		uint32_t attackerUnitId{};
-		uint32_t targetUnitId{};
-		uint32_t damage{};
-		uint32_t targetHp{};
+		UID_t attackerUnitId{};
+		UID_t targetUnitId{};
+		Health_t damage{};
+		Health_t targetHp{};
 
 		template <typename Visitor>
 		void visit(Visitor& visitor)

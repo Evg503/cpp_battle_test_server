@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include "Units/types.hpp"
 
 namespace sw::io
 {
@@ -8,9 +8,9 @@ namespace sw::io
 	{
 		constexpr static const char* Name = "MARCH_ENDED";
 
-		uint32_t unitId{};
-		uint32_t x{};
-		uint32_t y{};
+		UID_t unitId{};
+		Coord_t x{};
+		Coord_t y{};
 
 		template <typename Visitor>
 		void visit(Visitor& visitor)
