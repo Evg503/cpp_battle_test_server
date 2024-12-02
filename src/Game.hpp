@@ -51,7 +51,6 @@ public:
 
 	void spawnSwordsman(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength)
 	{
-		_items_index[uid] = _items.size();
 		auto& item = _items.emplace_back(uid, x, y, hp, strength);
 		log(sw::io::UnitSpawned{item.uid, "Swordsman", item.pos.x, item.pos.y});
 	}
@@ -63,7 +62,6 @@ public:
 
 	void spawnHunter(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t agility, Health_t strength, Coord_t range)
 	{
-		_items_index[uid] = _items.size();
 		auto& item = _items.emplace_back(uid, x, y, hp, strength, agility, range);
 		log(sw::io::UnitSpawned{item.uid, "Hunter", item.pos.x, item.pos.y});
 	}
@@ -74,8 +72,7 @@ public:
 	}
 	void march(UID_t uid, Coord_t target_x, Coord_t target_y)
 	{
-		auto idx = _items_index[uid];
-		auto& item = _items[idx];
+		auto& item = getItem(uid);
 		item.march(*this, Point{target_x, target_y});
 	}
 
@@ -86,7 +83,10 @@ public:
 
 	Item& getItem(UID_t uid)
 	{
-		return _items[_items_index[uid]];
+		auto it = std::find_if(_items.begin(), _items.end(),[uid](auto &item){return item.uid == uid;} );
+		if(it != _items.end())
+			return *it;
+		throw std::runtime_error("Item not found");
 	}
 
 	std::vector<Item*> getNeighbors(const Item& main_item, Coord_t min_d, Coord_t max_d)
@@ -162,5 +162,4 @@ private:
 	Time_t time = 1;
 	Logger& _log;
 	std::vector<Item> _items;
-	std::unordered_map<UID_t, size_t> _items_index;
 };

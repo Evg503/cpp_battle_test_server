@@ -169,12 +169,14 @@ public:
 		log.expect("[6] UNIT_MOVED unitId=3 x=0 y=4 ");
 
 		game.update();
+		//[7] UNIT_ATTACKED attackerUnitId=2 targetUnitId=3 damage=5 targetHp=5
+		// imposible, because distance((5,0), (0,4)) == 5 (>range = 4)
 		log.expect("[7] UNIT_MOVED unitId=2 x=4 y=0 ");
 		log.expect("[7] UNIT_MOVED unitId=3 x=0 y=3 ");
 
 		game.update();
 		log.expect("[8] UNIT_ATTACKED attackerUnitId=2 targetUnitId=3 damage=5 targetHp=5 ");
-        log.expect("[8] UNIT_MOVED unitId=3 x=0 y=2 ");
+		log.expect("[8] UNIT_MOVED unitId=3 x=0 y=2 ");
 
 		assert(game.update() == false);
 		log.expect("[9] UNIT_ATTACKED attackerUnitId=2 targetUnitId=3 damage=5 targetHp=0 ");
