@@ -1,7 +1,8 @@
 #pragma once
 
-#include <string>
 #include "Units/types.hpp"
+
+#include <string>
 
 namespace sw::io
 {
@@ -11,8 +12,8 @@ namespace sw::io
 
 		UID_t unitId{};
 		std::string unitType{};
-		Coord_t  x{};
-		Coord_t  y{};
+		Coord_t x{};
+		Coord_t y{};
 
 		template <typename Visitor>
 		void visit(Visitor& visitor)

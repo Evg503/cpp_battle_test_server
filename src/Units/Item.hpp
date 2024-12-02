@@ -41,6 +41,8 @@ struct Item
 			range(range)
 	{}
 
+	virtual ~Item() {}
+
 	void march(Game& game, Point new_target)
 	{
 		if (target != new_target)

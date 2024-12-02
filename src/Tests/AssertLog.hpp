@@ -3,9 +3,9 @@
 
 #include <cassert>
 #include <deque>
-#include <string>
 #include <iostream>
 #include <sstream>
+#include <string>
 
 class PrintFieldVisitor
 {
@@ -44,14 +44,14 @@ public:
 		{
 			std::cerr << "Expected \"" << exp << "\" but no lines" << std::endl;
 			assert(false);
-            return;
-		} 
+			return;
+		}
 
 		if (_last_lines.front() != exp)
 		{
 			std::cerr << "Expected \"" << exp << "\" != \"" << _last_lines.front() << "\"" << std::endl;
 			assert(false);
-            return;
+			return;
 		}
 		_last_lines.pop_front();
 	}

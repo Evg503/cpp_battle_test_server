@@ -14,6 +14,7 @@
 #include <IO/System/CommandParser.hpp>
 #include <IO/System/EventLog.hpp>
 #include <IO/System/PrintDebug.hpp>
+#include <memory>
 #include <random>
 #include <unordered_map>
 #include <vector>
@@ -22,6 +23,7 @@ template <typename Logger>
 class Game
 {
 	using Item = Item<Game>;
+	using PItem = std::shared_ptr<Item>;
 
 public:
 	Game(Logger& log) :
@@ -57,8 +59,9 @@ public:
 
 	void spawnSwordsman(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength)
 	{
-		auto& item = _items.emplace_back(uid, x, y, hp, strength);
-		log(sw::io::UnitSpawned{item.uid, "Swordsman", item.pos.x, item.pos.y});
+		auto item = std::make_shared<Item>(uid, x, y, hp, strength, 0, 0);
+		_items.push_back(item);
+		log(sw::io::UnitSpawned{item->uid, "Swordsman", item->pos.x, item->pos.y});
 	}
 
 	void spawnHunter(const sw::io::SpawnHunter& command)
@@ -68,11 +71,12 @@ public:
 
 	void spawnHunter(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t agility, Health_t strength, Coord_t range)
 	{
-		auto& item = _items.emplace_back(uid, x, y, hp, strength, agility, range);
-		log(sw::io::UnitSpawned{item.uid, "Hunter", item.pos.x, item.pos.y});
+		auto item = std::make_shared<Item>(uid, x, y, hp, strength, agility, range);
+		_items.push_back(item);
+		log(sw::io::UnitSpawned{item->uid, "Hunter", item->pos.x, item->pos.y});
 	}
 
-	Item*& getFieldPoint(Point pos)
+	PItem& getFieldPoint(Point pos)
 	{
 		auto x = pos.x;
 		auto y = pos.y;
@@ -84,7 +88,7 @@ public:
 		return _field[idx];
 	}
 
-	void placeToField(Item* item)
+	void placeToField(PItem item)
 	{
 		auto& cell = getFieldPoint(item->pos);
 		if (cell != nullptr)
@@ -101,18 +105,18 @@ public:
 
 	void march(UID_t uid, Coord_t target_x, Coord_t target_y)
 	{
-		auto& item = getItem(uid);
-		item.march(*this, Point{target_x, target_y});
+		auto item = getItem(uid);
+		item->march(*this, Point{target_x, target_y});
 	}
 
-	Coord_t distance(const Item& lhs, const Item& rhs)
+	Coord_t distance(const PItem lhs, const PItem rhs)
 	{
-		return ::distance(lhs.pos, rhs.pos);
+		return ::distance(lhs->pos, rhs->pos);
 	}
 
-	Item& getItem(UID_t uid)
+	PItem getItem(UID_t uid)
 	{
-		auto it = std::find_if(_items.begin(), _items.end(), [uid](auto& item) { return item.uid == uid; });
+		auto it = std::find_if(_items.begin(), _items.end(), [uid](auto& item) { return item->uid == uid; });
 		if (it != _items.end())
 		{
 			return *it;
@@ -120,29 +124,29 @@ public:
 		throw std::runtime_error("Item not found");
 	}
 
-	std::vector<Item*> getNeighbors(const Item& main_item, Coord_t min_d, Coord_t max_d)
+	std::vector<PItem> getNeighbors(const PItem main_item, Coord_t min_d, Coord_t max_d)
 	{
-		std::vector<Item*> result;
-		auto begin_x = std::clamp(0, main_item.pos.x - max_d, _fieldsize.x - 1);
-		auto end_x = std::clamp(0, main_item.pos.x + max_d, _fieldsize.x - 1);
-		auto begin_y = std::clamp(0, main_item.pos.y - max_d, _fieldsize.y - 1);
-		auto end_y = std::clamp(0, main_item.pos.y + max_d, _fieldsize.y - 1);
+		std::vector<PItem> result;
+		auto begin_x = std::clamp(0, main_item->pos.x - max_d, _fieldsize.x - 1);
+		auto end_x = std::clamp(0, main_item->pos.x + max_d, _fieldsize.x - 1);
+		auto begin_y = std::clamp(0, main_item->pos.y - max_d, _fieldsize.y - 1);
+		auto end_y = std::clamp(0, main_item->pos.y + max_d, _fieldsize.y - 1);
 		for (Coord_t y = begin_y; y <= end_y; ++y)
 		{
 			for (Coord_t x = begin_x; x <= end_x; ++x)
 			{
-				auto pitem = getFieldPoint({x, y});
-				if (pitem && pitem != &main_item && pitem->isAttacable()
-					&& less_eq3(min_d, distance(main_item, *pitem), max_d))
+				auto item = getFieldPoint({x, y});
+				if (item && item != main_item && item->isAttacable()
+					&& less_eq3(min_d, distance(main_item, item), max_d))
 				{
-					result.push_back(pitem);
+					result.push_back(item);
 				}
 			}
 		}
 		return result;
 	}
 
-	bool loAttack(Item& item)
+	bool loAttack(PItem item)
 	{
 		auto neighbors = getNeighbors(item, 1, 1);
 		if (neighbors.empty())
@@ -151,36 +155,36 @@ public:
 		}
 		std::uniform_int_distribution<> distrib(0, neighbors.size() - 1);
 		auto victim = neighbors[distrib(gen)];
-		item.attack(*this, victim, item.strength);
+		item->attack(*this, victim.get(), item->strength);
 		return true;
 	}
 
-	bool hiAttack(Item& item)
+	bool hiAttack(PItem item)
 	{
-		auto neighbors = getNeighbors(item, 2, item.range);
+		auto neighbors = getNeighbors(item, 2, item->range);
 		if (neighbors.empty())
 		{
 			return false;
 		}
 		std::uniform_int_distribution<> distrib(0, neighbors.size() - 1);
 		auto victim = neighbors[distrib(gen)];
-		item.attack(*this, victim, item.agility);
+		item->attack(*this, victim.get(), item->agility);
 		return true;
 	}
 
-	bool attack(Item& item)
+	bool attack(PItem item)
 	{
 		return loAttack(item) || hiAttack(item);
 	}
 
-	bool move(Item& item)
+	bool move(PItem item)
 	{
-		auto old_pos = item.pos;
-		if (item.move(*this))
+		auto old_pos = item->pos;
+		if (item->move(*this))
 		{
-			auto new_pos = item.pos;
+			auto new_pos = item->pos;
 			getFieldPoint(old_pos) = nullptr;
-			placeToField(&item);
+			placeToField(item);
 			return true;
 		}
 		return false;
@@ -189,9 +193,9 @@ public:
 	void prepareField()
 	{
 		_field.assign(_field.size(), nullptr);
-		for (auto& item : _items)
+		for (auto item : _items)
 		{
-			placeToField(&item);
+			placeToField(item);
 		}
 	}
 
@@ -218,14 +222,14 @@ public:
 	void clear_deaded()
 	{
 		_items.erase(
-			std::remove_if(_items.begin(), _items.end(), [](auto& item) { return !item.isAlive(); }), _items.end());
+			std::remove_if(_items.begin(), _items.end(), [](auto& item) { return !item->isAlive(); }), _items.end());
 	}
 
 private:
 	std::mt19937 gen;
 	Time_t time = 1;
 	Logger& _log;
-	std::vector<Item> _items;
-	std::vector<Item*> _field;
+	std::vector<PItem> _items;
+	std::vector<PItem> _field;
 	Point _fieldsize;
 };

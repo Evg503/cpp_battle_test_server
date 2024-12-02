@@ -123,10 +123,10 @@ public:
 		game.spawnSwordsman(18, 2, 2, 5, 2);
 		game.spawnSwordsman(19, 3, 3, 5, 2);
 		game.spawnSwordsman(20, 5, 5, 5, 2);
-		Item i00 = game.getItem(10);
-		Item i11 = game.getItem(14);
-		Item i33 = game.getItem(19);
-		Item i55 = game.getItem(20);
+		auto i00 = game.getItem(10);
+		auto i11 = game.getItem(14);
+		auto i33 = game.getItem(19);
+		auto i55 = game.getItem(20);
 
 		game.prepareField();
 		auto neighbors = game.getNeighbors(i55, 1, 1);
