@@ -9,8 +9,8 @@ get_filename_component(full_path_main_cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c
 
 list(REMOVE_ITEM SOURCES ${full_path_test_cpp} ${full_path_main_cpp})
 
-add_executable(sw_battle_test ${SOURCES} ${full_path_test_cpp})
-add_executable(sw_battle ${SOURCES} ${full_path_main_cpp})
+add_executable(test_sw_battle_test ${SOURCES} ${full_path_test_cpp})
+add_executable(sw_battle_test ${SOURCES} ${full_path_main_cpp})
 
+target_include_directories(test_sw_battle_test PUBLIC src/)
 target_include_directories(sw_battle_test PUBLIC src/)
-target_include_directories(sw_battle PUBLIC src/)

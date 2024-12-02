@@ -34,9 +34,19 @@ public:
 		_log.log(time, std::forward<TEvent>(event));
 	}
 
-	void createField(Coord_t W, Coord_t H)
+	void createField(const sw::io::CreateMap& command)
 	{
-		log(sw::io::MapCreated{W, H});
+		createField(command.width, command.height);
+	}
+
+	void createField(Coord_t width, Coord_t height)
+	{
+		log(sw::io::MapCreated{width, height});
+	}
+
+	void spawnSwordsman(const sw::io::SpawnSwordsman& command)
+	{
+		spawnSwordsman(command.unitId, command.x, command.y, command.hp, command.strength);
 	}
 
 	void spawnSwordsman(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength)
@@ -46,6 +56,11 @@ public:
 		log(sw::io::UnitSpawned{item.uid, "Swordsman", item.pos.x, item.pos.y});
 	}
 
+	void spawnHunter(const sw::io::SpawnHunter& command)
+	{
+		spawnHunter(command.unitId, command.x, command.y, command.hp, command.agility, command.strength, command.range);
+	}
+
 	void spawnHunter(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t agility, Health_t strength, Coord_t range)
 	{
 		_items_index[uid] = _items.size();
@@ -53,6 +68,10 @@ public:
 		log(sw::io::UnitSpawned{item.uid, "Hunter", item.pos.x, item.pos.y});
 	}
 
+	void march(const sw::io::March& command)
+	{
+		march(command.unitId, command.targetX, command.targetY);
+	}
 	void march(UID_t uid, Coord_t target_x, Coord_t target_y)
 	{
 		auto idx = _items_index[uid];
@@ -75,7 +94,7 @@ public:
 		std::vector<Item*> result;
 		for (auto& item : _items)
 		{
-			if (&item != &main_item && less_eq3(min_d, distance(main_item, item), max_d))
+			if (&item != &main_item && item.isAttacable() && less_eq3(min_d, distance(main_item, item), max_d))
 			{
 				result.push_back(&item);
 			}
@@ -114,16 +133,28 @@ public:
 		return loAttack(item) || hiAttack(item);
 	}
 
-	void update()
+	bool update()
 	{
+		bool change_detected = false;
 		time += 1;
+		int unit_count = 0;
 		for (auto& item : _items)
 		{
-			if (!attack(item))
-			{
-				item.move(*this);
-			}
+			bool item_changes = attack(item) || item.move(*this);
+			change_detected = change_detected || item_changes;
 		}
+		if (change_detected)
+		{
+			clear_deaded();
+			return _items.size() > 1;
+		}
+		return change_detected;
+	}
+
+	void clear_deaded()
+	{
+		_items.erase(
+			std::remove_if(_items.begin(), _items.end(), [](auto& item) { return !item.isAlive(); }), _items.end());
 	}
 
 private:

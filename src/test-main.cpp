@@ -144,7 +144,7 @@ public:
 		game.march(3, 0, 0);
 
 		log.forget();
-		game.update();
+		assert(game.update() == true);
 		log.expect("[2] UNIT_MOVED unitId=1 x=1 y=0 ");
 		log.expect("[2] UNIT_MOVED unitId=2 x=8 y=0 ");
 		log.expect("[2] UNIT_MOVED unitId=3 x=0 y=8 ");
@@ -160,21 +160,25 @@ public:
 		log.expect("[4] UNIT_DIED unitId=1 ");
 		log.expect("[4] UNIT_MOVED unitId=3 x=0 y=6 ");
 
-		// game.update();
-		// log.expect("[5] UNIT_MOVED unitId=2 x=6 y=0 ");
-		// log.expect("[5] UNIT_MOVED unitId=3 x=0 y=5 ");
+		game.update();
+		log.expect("[5] UNIT_MOVED unitId=2 x=6 y=0 ");
+		log.expect("[5] UNIT_MOVED unitId=3 x=0 y=5 ");
 
-		// game.update();
-		// log.expect("[6] UNIT_MOVED unitId=2 x=5 y=0 ");
-		// log.expect("[6] UNIT_MOVED unitId=3 x=0 y=4 ");
+		game.update();
+		log.expect("[6] UNIT_MOVED unitId=2 x=5 y=0 ");
+		log.expect("[6] UNIT_MOVED unitId=3 x=0 y=4 ");
 
-		// game.update();
-		// log.expect("[7] UNIT_ATTACKED attackerUnitId=2 targetUnitId=3 damage=5 targetHp=5 ");
-		// log.expect("[7] UNIT_MOVED unitId=3 x=0 y=3 ");
+		game.update();
+		log.expect("[7] UNIT_MOVED unitId=2 x=4 y=0 ");
+		log.expect("[7] UNIT_MOVED unitId=3 x=0 y=3 ");
 
-		// game.update();
-		// log.expect("[8] UNIT_ATTACKED attackerUnitId=2 targetUnitId=3 damage=5 targetHp=0 ");
-		// log.expect("[8] UNIT_DIED unitId=3 ");
+		game.update();
+		log.expect("[8] UNIT_ATTACKED attackerUnitId=2 targetUnitId=3 damage=5 targetHp=5 ");
+        log.expect("[8] UNIT_MOVED unitId=3 x=0 y=2 ");
+
+		assert(game.update() == false);
+		log.expect("[9] UNIT_ATTACKED attackerUnitId=2 targetUnitId=3 damage=5 targetHp=0 ");
+		log.expect("[9] UNIT_DIED unitId=3 ");
 
 		incCounter();
 	}

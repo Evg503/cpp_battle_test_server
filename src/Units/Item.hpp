@@ -59,22 +59,39 @@ struct Item
 		}
 	}
 
-	void attack(Logger& logger, Item* victim, Health_t strange)
+	void attack(Logger& logger, Item* victim, Health_t damage)
 	{
-		victim->attaked(strange);
-		logger.log(sw::io::UnitAttacked{uid, victim->uid, 5, victim->hp});
-		victim->checkHealth(logger);
+		if (hp > 0)
+		{
+			victim->attaked(damage);
+			logger.log(sw::io::UnitAttacked{uid, victim->uid, damage, victim->hp});
+			victim->checkHealth(logger);
+		}
 	}
 
-	void move(Logger& logger)
+	bool move(Logger& logger)
 	{
-		Coord_t dx = sign(target.x - pos.x);
-		Coord_t dy = sign(target.y - pos.y);
-		if (dx != 0 || dy != 0)
+		if (hp > 0)
 		{
-			pos.x += dx;
-			pos.y += dy;
-			logger.log(sw::io::UnitMoved{uid, pos.x, pos.y});
+			Coord_t dx = sign(target.x - pos.x);
+			Coord_t dy = sign(target.y - pos.y);
+			if (dx != 0 || dy != 0)
+			{
+				pos.x += dx;
+				pos.y += dy;
+				logger.log(sw::io::UnitMoved{uid, pos.x, pos.y});
+                return true;
+			}
 		}
+        return false;
+	}
+
+	bool isAttacable()
+	{
+		return hp > 0;
+	}
+	bool isAlive()
+	{
+		return hp > 0;
 	}
 };
