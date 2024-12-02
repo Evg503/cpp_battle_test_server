@@ -36,6 +36,29 @@ public:
 		_log.log(time, std::forward<TEvent>(event));
 	}
 
+	template <class TEvent>
+	void notify(TEvent&& event)
+	{
+		log(std::forward<TEvent>(event));
+	}
+
+	template <>
+	void notify(sw::io::UnitMoved&& event)
+	{
+		auto item = getFieldPoint(event.from);
+		placeToField(item);
+
+		log(std::forward<sw::io::UnitMoved>(event));
+	}
+
+	template <>
+	void notify(sw::io::UnitDied&& event)
+	{
+		getFieldPoint(event.pos).reset();
+
+		log(std::forward<sw::io::UnitDied>(event));
+	}
+
 	void createField(const sw::io::CreateMap& command)
 	{
 		createField(command.width, command.height);
@@ -59,7 +82,7 @@ public:
 
 	void spawnSwordsman(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength)
 	{
-		auto item = std::make_shared<Item>(uid, x, y, hp, strength, 0, 0);
+		auto item = std::make_shared<Swordsman<Game>>(uid, x, y, hp, strength);
 		_items.push_back(item);
 		log(sw::io::UnitSpawned{item->uid, "Swordsman", item->pos.x, item->pos.y});
 	}
@@ -71,7 +94,7 @@ public:
 
 	void spawnHunter(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t agility, Health_t strength, Coord_t range)
 	{
-		auto item = std::make_shared<Item>(uid, x, y, hp, strength, agility, range);
+		auto item = std::make_shared<Hunter<Game>>(uid, x, y, hp, strength, agility, range);
 		_items.push_back(item);
 		log(sw::io::UnitSpawned{item->uid, "Hunter", item->pos.x, item->pos.y});
 	}
@@ -161,15 +184,19 @@ public:
 
 	bool hiAttack(PItem item)
 	{
-		auto neighbors = getNeighbors(item, 2, item->range);
-		if (neighbors.empty())
+		auto range = item->getRange();
+		if (range != 0)
 		{
-			return false;
+			auto neighbors = getNeighbors(item, 2, range);
+			if (!neighbors.empty())
+			{
+				std::uniform_int_distribution<> distrib(0, neighbors.size() - 1);
+				auto victim = neighbors[distrib(gen)];
+				item->attack(*this, victim.get(), item->getAgility());
+				return true;
+			}
 		}
-		std::uniform_int_distribution<> distrib(0, neighbors.size() - 1);
-		auto victim = neighbors[distrib(gen)];
-		item->attack(*this, victim.get(), item->agility);
-		return true;
+		return false;
 	}
 
 	bool attack(PItem item)
@@ -179,15 +206,7 @@ public:
 
 	bool move(PItem item)
 	{
-		auto old_pos = item->pos;
-		if (item->move(*this))
-		{
-			auto new_pos = item->pos;
-			getFieldPoint(old_pos) = nullptr;
-			placeToField(item);
-			return true;
-		}
-		return false;
+		return item->move(*this);
 	}
 
 	void prepareField()

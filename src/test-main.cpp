@@ -141,6 +141,13 @@ public:
 		neighbors = game.getNeighbors(i33, 2, 5);
 		assert(neighbors.size() == 9);
 
+		game.march(20, 9, 9);
+		while (i55->move(game))
+		{
+		}
+		neighbors = game.getNeighbors(i33, 2, 5);
+		assert(neighbors.size() == 8);
+
 		log.forget();
 		passed();
 	}

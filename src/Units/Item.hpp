@@ -28,17 +28,12 @@ struct Item
 
 	Health_t strength;
 
-	Health_t agility;
-	Coord_t range;
-
-	Item(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength, Health_t agility = 0, Health_t range = 0) :
+	Item(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength) :
 			uid(uid),
 			pos{x, y},
 			target{x, y},
 			hp(hp),
-			strength(strength),
-			agility(agility),
-			range(range)
+			strength(strength)
 	{}
 
 	virtual ~Item() {}
@@ -61,8 +56,7 @@ struct Item
 	{
 		if (hp == 0)
 		{
-			game.log(sw::io::UnitDied{uid});
-			game.getFieldPoint(pos) = nullptr;
+			game.notify(sw::io::UnitDied{uid, pos});
 		}
 	}
 
@@ -84,12 +78,13 @@ struct Item
 			Coord_t dy = sign(target.y - pos.y);
 			if (dx != 0 || dy != 0)
 			{
+				auto oldpos = pos;
 				pos.x += dx;
 				pos.y += dy;
-				game.log(sw::io::UnitMoved{uid, pos.x, pos.y});
+				game.notify(sw::io::UnitMoved{uid, oldpos, pos});
 				if (pos == target)
 				{
-					game.log(sw::io::MarchEnded{uid, pos.x, pos.y});
+					game.notify(sw::io::MarchEnded{uid, pos.x, pos.y});
 				}
 				return true;
 			}
@@ -106,4 +101,45 @@ struct Item
 	{
 		return hp > 0;
 	}
+
+	virtual Coord_t getRange()
+	{
+		return 0;
+	}
+
+	virtual Coord_t getAgility()
+	{
+		return 0;
+	}
+};
+
+template <typename Game>
+struct Hunter : Item<Game>
+{
+	Health_t agility;
+	Coord_t range;
+
+	Hunter(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength, Health_t agility, Health_t range) :
+			Item<Game>(uid, x, y, hp, strength),
+			agility(agility),
+			range(range)
+	{}
+
+	Coord_t getRange() override
+	{
+		return range;
+	}
+
+	Coord_t getAgility() override
+	{
+		return agility;
+	}
+};
+
+template <typename Game>
+struct Swordsman : Item<Game>
+{
+	Swordsman(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength) :
+			Item<Game>(uid, x, y, hp, strength)
+	{}
 };

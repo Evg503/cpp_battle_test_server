@@ -9,6 +9,7 @@ namespace sw::io
 		constexpr static const char* Name = "UNIT_DIED";
 
 		UID_t unitId{};
+		Point pos;
 
 		template <typename Visitor>
 		void visit(Visitor& visitor)
