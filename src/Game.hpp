@@ -41,6 +41,12 @@ public:
 
 	void createField(Coord_t width, Coord_t height)
 	{
+		if (!_field.empty())
+		{
+			throw std::runtime_error("Field already created");
+		}
+		_fieldsize = {width, height};
+		_field.resize(width * height);
 		log(sw::io::MapCreated{width, height});
 	}
 
@@ -66,10 +72,33 @@ public:
 		log(sw::io::UnitSpawned{item.uid, "Hunter", item.pos.x, item.pos.y});
 	}
 
+	Item*& getFieldPoint(Point pos)
+	{
+		auto x = pos.x;
+		auto y = pos.y;
+		if (!less_eq3(0, x, _fieldsize.x - 1) || !less_eq3(0, y, _fieldsize.y - 1))
+		{
+			throw std::runtime_error("Position out of field");
+		}
+		auto idx = x + y * _fieldsize.x;
+		return _field[idx];
+	}
+
+	void placeToField(Item* item)
+	{
+		auto& cell = getFieldPoint(item->pos);
+		if (cell != nullptr)
+		{
+			throw std::runtime_error("Cell already used");
+		}
+		cell = item;
+	}
+
 	void march(const sw::io::March& command)
 	{
 		march(command.unitId, command.targetX, command.targetY);
 	}
+
 	void march(UID_t uid, Coord_t target_x, Coord_t target_y)
 	{
 		auto& item = getItem(uid);
@@ -83,20 +112,31 @@ public:
 
 	Item& getItem(UID_t uid)
 	{
-		auto it = std::find_if(_items.begin(), _items.end(),[uid](auto &item){return item.uid == uid;} );
-		if(it != _items.end())
+		auto it = std::find_if(_items.begin(), _items.end(), [uid](auto& item) { return item.uid == uid; });
+		if (it != _items.end())
+		{
 			return *it;
+		}
 		throw std::runtime_error("Item not found");
 	}
 
 	std::vector<Item*> getNeighbors(const Item& main_item, Coord_t min_d, Coord_t max_d)
 	{
 		std::vector<Item*> result;
-		for (auto& item : _items)
+		auto begin_x = std::clamp(0, main_item.pos.x - max_d, _fieldsize.x - 1);
+		auto end_x = std::clamp(0, main_item.pos.x + max_d, _fieldsize.x - 1);
+		auto begin_y = std::clamp(0, main_item.pos.y - max_d, _fieldsize.y - 1);
+		auto end_y = std::clamp(0, main_item.pos.y + max_d, _fieldsize.y - 1);
+		for (Coord_t y = begin_y; y <= end_y; ++y)
 		{
-			if (&item != &main_item && item.isAttacable() && less_eq3(min_d, distance(main_item, item), max_d))
+			for (Coord_t x = begin_x; x <= end_x; ++x)
 			{
-				result.push_back(&item);
+				auto pitem = getFieldPoint({x, y});
+				if (pitem && pitem != &main_item && pitem->isAttacable()
+					&& less_eq3(min_d, distance(main_item, *pitem), max_d))
+				{
+					result.push_back(pitem);
+				}
 			}
 		}
 		return result;
@@ -133,16 +173,40 @@ public:
 		return loAttack(item) || hiAttack(item);
 	}
 
+	bool move(Item& item)
+	{
+		auto old_pos = item.pos;
+		if (item.move(*this))
+		{
+			auto new_pos = item.pos;
+			getFieldPoint(old_pos) = nullptr;
+			placeToField(&item);
+			return true;
+		}
+		return false;
+	}
+
+	void prepareField()
+	{
+		_field.assign(_field.size(), nullptr);
+		for (auto& item : _items)
+		{
+			placeToField(&item);
+		}
+	}
+
 	bool update()
 	{
+		prepareField();
 		bool change_detected = false;
 		time += 1;
 		int unit_count = 0;
 		for (auto& item : _items)
 		{
-			bool item_changes = attack(item) || item.move(*this);
+			bool item_changes = attack(item) || move(item);
 			change_detected = change_detected || item_changes;
 		}
+		_field.assign(_field.size(), nullptr);
 		if (change_detected)
 		{
 			clear_deaded();
@@ -162,4 +226,6 @@ private:
 	Time_t time = 1;
 	Logger& _log;
 	std::vector<Item> _items;
+	std::vector<Item*> _field;
+	Point _fieldsize;
 };

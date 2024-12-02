@@ -3,6 +3,7 @@
 #include "Units/types.hpp"
 
 #include <cassert>
+#include <chrono>
 #include <deque>
 #include <fstream>
 #include <iostream>
@@ -13,8 +14,9 @@ private:
 	static int testcounter;
 
 protected:
-	void incCounter()
+	void passed()
 	{
+		std::cout << '.';
 		++testcounter;
 	}
 
@@ -46,7 +48,7 @@ public:
 		assert(distance(p11, p40) == 3);
 		assert(distance(p05, p78) == 7);
 		assert(distance(p40, p78) == 8);
-		incCounter();
+		passed();
 	}
 
 	void testLessEq3()
@@ -59,7 +61,7 @@ public:
 		assert(less_eq3(2, 2, 1) == false);
 		assert(less_eq3(2, 1, 1) == false);
 		assert(less_eq3(1, 2, 3) == true);
-		incCounter();
+		passed();
 	}
 };
 
@@ -82,7 +84,7 @@ public:
 	{
 		game.createField(4, 9);
 		log.expect("[1] MAP_CREATED width=4 height=9 ");
-		incCounter();
+		passed();
 	}
 
 	void testCreateGame()
@@ -104,7 +106,7 @@ public:
 		log.expect("[1] UNIT_SPAWNED unitId=3 unitType=Swordsman x=0 y=9 ");
 		game.march(3, 0, 0);
 		log.expect("[1] MARCH_STARTED unitId=3 x=0 y=9 targetX=0 targetY=0 ");
-		incCounter();
+		passed();
 	}
 
 	void testNeighbors()
@@ -123,14 +125,67 @@ public:
 		game.spawnSwordsman(20, 5, 5, 5, 2);
 		Item i00 = game.getItem(10);
 		Item i11 = game.getItem(14);
+		Item i33 = game.getItem(19);
 		Item i55 = game.getItem(20);
+
+		game.prepareField();
 		auto neighbors = game.getNeighbors(i55, 1, 1);
 		assert(neighbors.empty());
+
 		neighbors = game.getNeighbors(i11, 1, 1);
 		assert(neighbors.size() == 8);
 
+		neighbors = game.getNeighbors(i11, 1, 1);
+		assert(neighbors.size() == 8);
+
+		neighbors = game.getNeighbors(i33, 2, 5);
+		assert(neighbors.size() == 9);
+
 		log.forget();
-		incCounter();
+		passed();
+	}
+
+	void testMatchEnded()
+	{
+		game.createField(10, 10);
+		game.spawnSwordsman(10, 0, 0, 5, 2);
+		game.spawnSwordsman(20, 9, 9, 5, 2);
+		game.march(10, 1, 0);
+		game.march(20, 7, 7);
+
+		log.forget();
+		assert(game.update() == true);
+		log.expect("[2] UNIT_MOVED unitId=10 x=1 y=0 ");
+		log.expect("[2] MARCH_ENDED unitId=10 x=1 y=0 ");
+		log.expect("[2] UNIT_MOVED unitId=20 x=8 y=8 ");
+
+		assert(game.update() == true);
+		log.expect("[3] UNIT_MOVED unitId=20 x=7 y=7 ");
+		log.expect("[3] MARCH_ENDED unitId=20 x=7 y=7 ");
+
+		assert(game.update() == false);
+
+		passed();
+	}
+
+	void testMatchNotStarted()
+	{
+		game.createField(10, 10);
+		game.spawnSwordsman(1, 0, 0, 5, 2);
+		game.spawnSwordsman(2, 9, 9, 5, 2);
+		log.forget();
+		game.march(1, 1, 0);
+		log.expect("[1] MARCH_STARTED unitId=1 x=0 y=0 targetX=1 targetY=0 ");
+		game.march(2, 9, 9);
+		//log.expect("[1] MARCH_STARTED unitId=2 x=9 y=9 targetX=9 targetY=9 ");
+
+		assert(game.update() == true);
+		log.expect("[2] UNIT_MOVED unitId=1 x=1 y=0 ");
+		log.expect("[2] MARCH_ENDED unitId=1 x=1 y=0 ");
+
+		assert(game.update() == false);
+
+		passed();
 	}
 
 	void testGameLoop()
@@ -174,7 +229,7 @@ public:
 		log.expect("[7] UNIT_MOVED unitId=2 x=4 y=0 ");
 		log.expect("[7] UNIT_MOVED unitId=3 x=0 y=3 ");
 
-		game.update();
+		assert(game.update() == true);
 		log.expect("[8] UNIT_ATTACKED attackerUnitId=2 targetUnitId=3 damage=5 targetHp=5 ");
 		log.expect("[8] UNIT_MOVED unitId=3 x=0 y=2 ");
 
@@ -182,18 +237,101 @@ public:
 		log.expect("[9] UNIT_ATTACKED attackerUnitId=2 targetUnitId=3 damage=5 targetHp=0 ");
 		log.expect("[9] UNIT_DIED unitId=3 ");
 
-		incCounter();
+		passed();
+	}
+
+	void test10x10swords()
+	{
+		const int W = 10;
+		const int H = 10;
+		game.createField(W, H);
+		UID_t uid = 100;
+		for (int y = 0; y < H; ++y)
+		{
+			for (int x = 0; x < W; ++x)
+			{
+				game.spawnSwordsman(uid, x, y, 5, 2);
+				game.march(uid, 5, 5);
+				++uid;
+			}
+		}
+		while (game.update())
+		{
+		}
+		log.forget();
+
+		passed();
+	}
+
+	void test10x10hunters()
+	{
+		const int W = 10;
+		const int H = 10;
+		game.createField(W, H);
+		UID_t uid = 100;
+		for (int y = 0; y < H; ++y)
+		{
+			for (int x = 0; x < W; ++x)
+			{
+				game.spawnHunter(uid, x, y, 10, 5, 1, 4);
+				game.march(uid, 5, 5);
+				++uid;
+			}
+		}
+		while (game.update())
+		{
+		}
+		log.forget();
+
+		passed();
+	}
+
+	void testMxNhunters()
+	{
+		const int W = 200;
+		const int H = 200;
+		game.createField(W, H);
+		UID_t uid = 100;
+		auto start = std::chrono::steady_clock::now();
+		for (int y = 0; y < H; ++y)
+		{
+			for (int x = 0; x < W; ++x)
+			{
+				game.spawnHunter(uid, x, y, 10, 5, 1, 4);
+				game.march(uid, W / 2, H / 2);
+				++uid;
+			}
+		}
+		int steps = 0;
+		while (game.update())
+		{
+			++steps;
+		}
+		auto finished = std::chrono::steady_clock::now();
+		log.forget();
+		std::cout << "steps = " << steps
+				  << " time = " << std::chrono::duration_cast<std::chrono::milliseconds>(finished - start) << std::endl;
+		passed();
 	}
 };
 
 int main(int argc, char** argv)
 {
-	TestSuite<Game, AssertEventLog>().testMapSize();
-	TestSuite<Game, AssertEventLog>().testCreateGame();
-	TestSuite<Game, AssertEventLog>().testNeighbors();
-	TestSuite<Game, AssertEventLog>().testGameLoop();
+#ifdef NDEBUG
+	TestSuite<Game, AssertEventLog>().testMxNhunters();	 //200x200 ~ 500-700ms
+#else
+	//TestSuite<Game, AssertEventLog>().testMxNhunters(); //200x200 ~ 7sec
 	TestSuitePoint().testDistance();
 	TestSuitePoint().testLessEq3();
 
+	TestSuite<Game, AssertEventLog>().testMapSize();
+	TestSuite<Game, AssertEventLog>().testCreateGame();
+	TestSuite<Game, AssertEventLog>().testNeighbors();
+	TestSuite<Game, AssertEventLog>().testMatchEnded();
+	TestSuite<Game, AssertEventLog>().testGameLoop();
+	TestSuite<Game, AssertEventLog>().test10x10swords();
+	TestSuite<Game, AssertEventLog>().test10x10hunters();
+	TestSuite<Game, AssertEventLog>().testMatchNotStarted();
+#endif
 	std::cout << TestSuiteBase::getCounter() << " TESTS PASSED!!!\n";
 }

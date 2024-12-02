@@ -2,6 +2,7 @@
 
 #include "Units/types.hpp"
 
+#include <IO/Events/MarchEnded.hpp>
 #include <IO/Events/MarchStarted.hpp>
 #include <IO/Events/UnitAttacked.hpp>
 #include <IO/Events/UnitDied.hpp>
@@ -14,7 +15,7 @@ int sign(T v)
 	return (T(0) < v) - (v < T(0));
 }
 
-template <typename Logger>
+template <typename Game>
 struct Item
 {
 	UID_t uid;
@@ -40,10 +41,13 @@ struct Item
 			range(range)
 	{}
 
-	void march(Logger& logger, Point new_target)
+	void march(Game& game, Point new_target)
 	{
-		target = new_target;
-		logger.log(sw::io::MarchStarted{uid, pos.x, pos.y, target.x, target.y});
+		if (target != new_target)
+		{
+			target = new_target;
+			game.log(sw::io::MarchStarted{uid, pos.x, pos.y, target.x, target.y});
+		}
 	}
 
 	void attaked(Health_t damage)
@@ -51,25 +55,26 @@ struct Item
 		hp = std::max(0, hp - damage);
 	}
 
-	void checkHealth(Logger& logger)
+	void checkHealth(Game& game)
 	{
 		if (hp == 0)
 		{
-			logger.log(sw::io::UnitDied{uid});
+			game.log(sw::io::UnitDied{uid});
+			game.getFieldPoint(pos) = nullptr;
 		}
 	}
 
-	void attack(Logger& logger, Item* victim, Health_t damage)
+	void attack(Game& game, Item* victim, Health_t damage)
 	{
 		if (hp > 0)
 		{
 			victim->attaked(damage);
-			logger.log(sw::io::UnitAttacked{uid, victim->uid, damage, victim->hp});
-			victim->checkHealth(logger);
+			game.log(sw::io::UnitAttacked{uid, victim->uid, damage, victim->hp});
+			victim->checkHealth(game);
 		}
 	}
 
-	bool move(Logger& logger)
+	bool move(Game& game)
 	{
 		if (hp > 0)
 		{
@@ -79,17 +84,22 @@ struct Item
 			{
 				pos.x += dx;
 				pos.y += dy;
-				logger.log(sw::io::UnitMoved{uid, pos.x, pos.y});
-                return true;
+				game.log(sw::io::UnitMoved{uid, pos.x, pos.y});
+				if (pos == target)
+				{
+					game.log(sw::io::MarchEnded{uid, pos.x, pos.y});
+				}
+				return true;
 			}
 		}
-        return false;
+		return false;
 	}
 
 	bool isAttacable()
 	{
 		return hp > 0;
 	}
+
 	bool isAlive()
 	{
 		return hp > 0;

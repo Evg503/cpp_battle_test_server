@@ -44,12 +44,14 @@ public:
 		{
 			std::cerr << "Expected \"" << exp << "\" but no lines" << std::endl;
 			assert(false);
-		}
+            return;
+		} 
 
 		if (_last_lines.front() != exp)
 		{
 			std::cerr << "Expected \"" << exp << "\" != \"" << _last_lines.front() << "\"" << std::endl;
 			assert(false);
+            return;
 		}
 		_last_lines.pop_front();
 	}

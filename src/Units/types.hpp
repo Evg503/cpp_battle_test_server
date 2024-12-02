@@ -14,6 +14,11 @@ struct Point
 	Coord_t y;
 };
 
+bool operator==(const Point& lhs, const Point& rhs)
+{
+	return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+
 Coord_t distance(const Point& lhs, const Point& rhs)
 {
 	return std::max(std::abs(rhs.x - lhs.x), std::abs(rhs.y - lhs.y));
