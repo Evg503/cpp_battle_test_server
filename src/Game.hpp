@@ -22,7 +22,6 @@
 template <typename Logger>
 class Game : public GameNotifier
 {
-	using Item = Item<Game>;
 	using PItem = std::shared_ptr<Item>;
 
 public:
@@ -36,18 +35,22 @@ public:
 		_log.log(time, std::forward<TEvent>(event));
 	}
 
-	template <class TEvent>
-	void notify(TEvent&& event)
+	void notify(sw::io::UnitAttacked&& event) override
 	{
-		log(std::forward<TEvent>(event));
+		log(std::forward<sw::io::UnitAttacked>(event));
 	}
 
 	void notify(sw::io::MarchStarted&& event) override
 	{
 		log(std::forward<sw::io::MarchStarted>(event));
 	}
-	template <>
-	void notify(sw::io::UnitMoved&& event)
+
+	void notify(sw::io::MarchEnded&& event) override
+	{
+		log(std::forward<sw::io::MarchEnded>(event));
+	}
+
+	void notify(sw::io::UnitMoved&& event) override
 	{
 		auto item = getFieldPoint(event.from);
 		placeToField(item);
@@ -55,8 +58,7 @@ public:
 		log(std::forward<sw::io::UnitMoved>(event));
 	}
 
-	template <>
-	void notify(sw::io::UnitDied&& event) //override
+	void notify(sw::io::UnitDied&& event) override
 	{
 		getFieldPoint(event.pos).reset();
 
@@ -86,7 +88,7 @@ public:
 
 	void spawnSwordsman(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength)
 	{
-		auto item = std::make_shared<Swordsman<Game>>(this, uid, x, y, hp, strength);
+		auto item = std::make_shared<Swordsman>(this, uid, x, y, hp, strength);
 		_items.push_back(item);
 		log(sw::io::UnitSpawned{item->uid, "Swordsman", item->pos.x, item->pos.y});
 	}
@@ -98,7 +100,7 @@ public:
 
 	void spawnHunter(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t agility, Health_t strength, Coord_t range)
 	{
-		auto item = std::make_shared<Hunter<Game>>(this, uid, x, y, hp, strength, agility, range);
+		auto item = std::make_shared<Hunter>(this, uid, x, y, hp, strength, agility, range);
 		_items.push_back(item);
 		log(sw::io::UnitSpawned{item->uid, "Hunter", item->pos.x, item->pos.y});
 	}
@@ -182,7 +184,7 @@ public:
 		}
 		std::uniform_int_distribution<> distrib(0, neighbors.size() - 1);
 		auto victim = neighbors[distrib(gen)];
-		item->attack(*this, victim.get(), item->strength);
+		item->attack(victim.get(), item->strength);
 		return true;
 	}
 
@@ -196,7 +198,7 @@ public:
 			{
 				std::uniform_int_distribution<> distrib(0, neighbors.size() - 1);
 				auto victim = neighbors[distrib(gen)];
-				item->attack(*this, victim.get(), item->getAgility());
+				item->attack(victim.get(), item->getAgility());
 				return true;
 			}
 		}
@@ -210,7 +212,7 @@ public:
 
 	bool move(PItem item)
 	{
-		return item->move(*this);
+		return item->move();
 	}
 
 	void prepareField()
