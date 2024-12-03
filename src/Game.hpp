@@ -1,6 +1,8 @@
 #pragma once
+#include "GameField.hpp"
 #include "Units/Hunter.hpp"
 #include "Units/Swordsman.hpp"
+#include "Util/SubscriptedLogger.hpp"
 
 #include <IO/Commands/CreateMap.hpp>
 #include <IO/Commands/March.hpp>
@@ -21,57 +23,6 @@
 #include <vector>
 
 template <typename Logger>
-class SubcriptedLogger : public GameNotifier
-{
-public:
-	SubcriptedLogger(Logger& log) :
-			time(1),
-			_log(log)
-	{}
-
-	void update(Time_t t)
-	{
-		time = t;
-	}
-
-	template <class TEvent>
-	void log(TEvent&& event)
-	{
-		_log.log(time, std::forward<TEvent>(event));
-	}
-
-private:
-	void notify(sw::io::UnitAttacked&& event) override
-	{
-		log(std::forward<sw::io::UnitAttacked>(event));
-	}
-
-	void notify(sw::io::MarchStarted&& event) override
-	{
-		log(std::forward<sw::io::MarchStarted>(event));
-	}
-
-	void notify(sw::io::MarchEnded&& event) override
-	{
-		log(std::forward<sw::io::MarchEnded>(event));
-	}
-
-	void notify(sw::io::UnitMoved&& event) override
-	{
-		log(std::forward<sw::io::UnitMoved>(event));
-	}
-
-	void notify(sw::io::UnitDied&& event) override
-	{
-		log(std::forward<sw::io::UnitDied>(event));
-	}
-
-private:
-	Time_t time;
-	Logger& _log;
-};
-
-template <typename Logger>
 class Game : public GameNotifier
 {
 	using PItem = std::shared_ptr<Item>;
@@ -79,7 +30,9 @@ class Game : public GameNotifier
 public:
 	Game(Logger& log) :
 			_log(log)
-	{}
+	{
+		_gamefield.subscribe(&_log);
+	}
 
 	template <class TEvent>
 	void log(TEvent&& event)
@@ -92,16 +45,24 @@ public:
 	void notify(sw::io::MarchStarted&& event) override {}
 
 	void notify(sw::io::MarchEnded&& event) override {}
+	void notify(sw::io::MapCreated&& event) override {}
 
 	void notify(sw::io::UnitMoved&& event) override
 	{
-		auto item = getFieldPoint(event.from);
+		auto& item = getFieldPoint(event.from);
 		placeToField(item);
+        item.reset();
 	}
 
 	void notify(sw::io::UnitDied&& event) override
 	{
 		getFieldPoint(event.pos).reset();
+	}
+
+	void notify(sw::io::UnitSpawned&& event) override
+	{
+		// because logger is not subscribed yet
+		log(std::forward<sw::io::UnitSpawned>(event));
 	}
 
 	void createField(const sw::io::CreateMap& command)
@@ -111,13 +72,7 @@ public:
 
 	void createField(Coord_t width, Coord_t height)
 	{
-		if (!_field.empty())
-		{
-			throw std::runtime_error("Field already created");
-		}
-		_fieldsize = {width, height};
-		_field.resize(width * height);
-		log(sw::io::MapCreated{width, height});
+		_gamefield.create(width, height);
 	}
 
 	void spawnSwordsman(const sw::io::SpawnSwordsman& command)
@@ -129,8 +84,7 @@ public:
 	{
 		auto item = std::make_shared<Swordsman>(this, uid, x, y, hp, strength);
 		item->subscribe(&_log);
-		_items.push_back(item);
-		log(sw::io::UnitSpawned{item->uid, "Swordsman", item->pos.x, item->pos.y});
+		_gamefield.spawn(item);
 	}
 
 	void spawnHunter(const sw::io::SpawnHunter& command)
@@ -142,30 +96,17 @@ public:
 	{
 		auto item = std::make_shared<Hunter>(this, uid, x, y, hp, strength, agility, range);
 		item->subscribe(&_log);
-		_items.push_back(item);
-		log(sw::io::UnitSpawned{item->uid, "Hunter", item->pos.x, item->pos.y});
+		_gamefield.spawn(item);
 	}
 
 	PItem& getFieldPoint(Point pos)
 	{
-		auto x = pos.x;
-		auto y = pos.y;
-		if (!less_eq3(0, x, _fieldsize.x - 1) || !less_eq3(0, y, _fieldsize.y - 1))
-		{
-			throw std::runtime_error("Position out of field");
-		}
-		auto idx = x + y * _fieldsize.x;
-		return _field[idx];
+		return _gamefield.getFieldPoint(pos);
 	}
 
 	void placeToField(PItem item)
 	{
-		auto& cell = getFieldPoint(item->pos);
-		if (cell != nullptr)
-		{
-			throw std::runtime_error("Cell already used");
-		}
-		cell = item;
+		_gamefield.placeToField(item);
 	}
 
 	void march(const sw::io::March& command)
@@ -175,45 +116,17 @@ public:
 
 	void march(UID_t uid, Coord_t target_x, Coord_t target_y)
 	{
-		auto item = getItem(uid);
+		auto item = _gamefield.getItem(uid);
 		item->march(Point{target_x, target_y});
-	}
-
-	Coord_t distance(const PItem lhs, const PItem rhs)
-	{
-		return ::distance(lhs->pos, rhs->pos);
-	}
-
-	PItem getItem(UID_t uid)
-	{
-		auto it = std::find_if(_items.begin(), _items.end(), [uid](auto& item) { return item->uid == uid; });
-		if (it != _items.end())
-		{
-			return *it;
-		}
-		throw std::runtime_error("Item not found");
 	}
 
 	std::vector<PItem> getNeighbors(const PItem main_item, Coord_t min_d, Coord_t max_d)
 	{
-		std::vector<PItem> result;
-		auto begin_x = std::clamp(0, main_item->pos.x - max_d, _fieldsize.x - 1);
-		auto end_x = std::clamp(0, main_item->pos.x + max_d, _fieldsize.x - 1);
-		auto begin_y = std::clamp(0, main_item->pos.y - max_d, _fieldsize.y - 1);
-		auto end_y = std::clamp(0, main_item->pos.y + max_d, _fieldsize.y - 1);
-		for (Coord_t y = begin_y; y <= end_y; ++y)
-		{
-			for (Coord_t x = begin_x; x <= end_x; ++x)
-			{
-				auto item = getFieldPoint({x, y});
-				if (item && item != main_item && item->isAttacable()
-					&& less_eq3(min_d, distance(main_item, item), max_d))
-				{
-					result.push_back(item);
-				}
-			}
-		}
-		return result;
+		return _gamefield.getNeighbors(main_item, min_d, max_d);
+	}
+	PItem getItem(UID_t uid)
+	{
+		return _gamefield.getItem(uid);
 	}
 
 	bool loAttack(PItem item)
@@ -256,47 +169,24 @@ public:
 		return item->move();
 	}
 
-	void prepareField()
-	{
-		_field.assign(_field.size(), nullptr);
-		for (auto item : _items)
-		{
-			placeToField(item);
-		}
-	}
-
 	bool update()
 	{
-		prepareField();
-		bool change_detected = false;
 		time += 1;
 		_log.update(time);
-		int unit_count = 0;
-		for (auto& item : _items)
-		{
+		bool change_detected = false;
+
+        _gamefield.update([&change_detected, this](PItem& item){
 			bool item_changes = attack(item) || move(item);
 			change_detected = change_detected || item_changes;
-		}
-		_field.assign(_field.size(), nullptr);
-		if (change_detected)
-		{
-			clear_deaded();
-			return _items.size() > 1;
-		}
-		return change_detected;
-	}
 
-	void clear_deaded()
-	{
-		_items.erase(
-			std::remove_if(_items.begin(), _items.end(), [](auto& item) { return !item->isAlive(); }), _items.end());
+        });
+		_gamefield.relax();
+		return change_detected && _gamefield.count() > 1;
 	}
 
 private:
 	std::mt19937 gen;
 	Time_t time = 1;
 	SubcriptedLogger<Logger> _log;
-	std::vector<PItem> _items;
-	std::vector<PItem> _field;
-	Point _fieldsize;
+	GameField _gamefield;
 };

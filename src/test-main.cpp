@@ -128,7 +128,6 @@ public:
 		auto i33 = game.getItem(19);
 		auto i55 = game.getItem(20);
 
-		game.prepareField();
 		auto neighbors = game.getNeighbors(i55, 1, 1);
 		assert(neighbors.empty());
 
@@ -243,7 +242,6 @@ public:
 		assert(game.update() == false);
 		log.expect("[9] UNIT_ATTACKED attackerUnitId=2 targetUnitId=3 damage=5 targetHp=0 ");
 		log.expect("[9] UNIT_DIED unitId=3 ");
-
 		passed();
 	}
 

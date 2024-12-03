@@ -19,7 +19,9 @@ struct Hunter : Item
 			Item(game, uid, x, y, hp, strength),
 			agility(agility),
 			range(range)
-	{}
+	{
+		notify(sw::io::UnitSpawned{uid, "Hunter", pos.x, pos.y});
+	}
 
 	Coord_t getRange() override
 	{

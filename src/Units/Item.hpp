@@ -1,13 +1,8 @@
 #pragma once
 
 #include "Units/types.hpp"
-#include "notifier.hpp"
+#include "Util/GameNotifier.hpp"
 
-#include <IO/Events/MarchEnded.hpp>
-#include <IO/Events/MarchStarted.hpp>
-#include <IO/Events/UnitAttacked.hpp>
-#include <IO/Events/UnitDied.hpp>
-#include <IO/Events/UnitMoved.hpp>
 #include <algorithm>
 
 template <typename T>
@@ -16,8 +11,6 @@ int sign(T v)
 	return (T(0) < v) - (v < T(0));
 }
 
-using GameNotifier
-	= Notifier<sw::io::MarchStarted, sw::io::MarchEnded, sw::io::UnitMoved, sw::io::UnitDied, sw::io::UnitAttacked>;
 
 struct Item : public Sender<GameNotifier>
 {
