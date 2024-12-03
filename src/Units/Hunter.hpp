@@ -20,7 +20,7 @@ struct Hunter : Item
 			agility(agility),
 			range(range)
 	{
-		notify(sw::io::UnitSpawned{uid, "Hunter", pos.x, pos.y});
+		notify_all(sw::io::UnitSpawned{uid, "Hunter", pos.x, pos.y});
 	}
 
 	Coord_t getRange() override

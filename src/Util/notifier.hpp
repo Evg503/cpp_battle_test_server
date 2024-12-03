@@ -22,17 +22,20 @@ public:
 	virtual void notify(T1&&) = 0;
 };
 
-template <typename Notifier>
+template <typename T, typename N>
+    concept CompatibleNotifier = std::is_base_of<Notifier<T>, N>::value;
+
+template <typename N>
 class Sender
 {
 public:
-	void subscribe(Notifier* notifier)
+	void subscribe(N* notifier)
 	{
 		_items.push_back(notifier);
 	}
 
-	template <typename T>
-	void notify(T&& t)
+	template <CompatibleNotifier<N> T>
+	void notify_all(T&& t)
 	{
 		for (auto& item : _items)
 		{
@@ -41,5 +44,5 @@ public:
 	}
 
 private:
-	std::vector<Notifier*> _items;
+	std::vector<N*> _items;
 };

@@ -3,15 +3,16 @@
 #include "Units/Item.hpp"
 #include "Util/GameNotifier.hpp"
 
+#include <iostream>
 #include <memory>
 #include <vector>
 
 using PItem = std::shared_ptr<Item>;
 
-class Neighbor {
-    public:
-    	virtual std::vector<PItem> getNeighbors(const PItem main_item, Coord_t min_d, Coord_t max_d) =0;
-
+class Neighbor
+{
+public:
+	virtual std::vector<PItem> getNeighbors(const PItem main_item, Coord_t min_d, Coord_t max_d) = 0;
 };
 
 class GameField : public Sender<GameNotifier>, public Neighbor
@@ -30,13 +31,13 @@ public:
 		}
 		_fieldsize = {width, height};
 		_field.resize(width * height);
-		notify(sw::io::MapCreated{width, height});
+		notify_all(sw::io::MapCreated{width, height});
 	}
 
 	void spawn(PItem item)
 	{
 		_items.push_back(item);
-			placeToField(item);
+		placeToField(item);
 	}
 
 	void placeToField(PItem item)
@@ -76,6 +77,26 @@ public:
 		throw std::runtime_error("Item not found");
 	}
 
+	void printField()
+	{
+		for (Coord_t y = 0; y < _fieldsize.y; ++y)
+		{
+			for (Coord_t x = 0; x < _fieldsize.x; ++x)
+			{
+				auto item = getFieldPoint({x, y});
+				if (item)
+				{
+					std::cerr << item->uid;
+				}
+				else
+				{
+					std::cerr << "-";
+				}
+			}
+			std::cerr << std::endl;
+		}
+	}
+
 	std::vector<PItem> getNeighbors(const PItem main_item, Coord_t min_d, Coord_t max_d)
 	{
 		std::vector<PItem> result;
@@ -83,6 +104,8 @@ public:
 		auto end_x = std::clamp(0, main_item->pos.x + max_d, _fieldsize.x - 1);
 		auto begin_y = std::clamp(0, main_item->pos.y - max_d, _fieldsize.y - 1);
 		auto end_y = std::clamp(0, main_item->pos.y + max_d, _fieldsize.y - 1);
+
+		//std::cerr<< "(" << begin_x << ", " << begin_y << ") -- (" << end_x << ", " << end_y << ")\n" ;
 		for (Coord_t y = begin_y; y <= end_y; ++y)
 		{
 			for (Coord_t x = begin_x; x <= end_x; ++x)
@@ -103,22 +126,24 @@ public:
 		clear_deaded();
 	}
 
-    size_t count(){
-        return _items.size();
-    }
+	size_t count()
+	{
+		return _items.size();
+	}
+
 	void clear_deaded()
 	{
 		_items.erase(
 			std::remove_if(_items.begin(), _items.end(), [](auto& item) { return !item->isAlive(); }), _items.end());
 	}
 
-    void update(auto P)
-    {
-        for(auto& item:_items)
-        {
-            P(item);
-        }
-    }
+	void update(auto P)
+	{
+		for (auto& item : _items)
+		{
+			P(item);
+		}
+	}
 
 	~GameField();
 };
