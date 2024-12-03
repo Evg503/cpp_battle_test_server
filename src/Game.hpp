@@ -1,5 +1,6 @@
 #pragma once
-#include "Units/Item.hpp"
+#include "Units/Hunter.hpp"
+#include "Units/Swordsman.hpp"
 
 #include <IO/Commands/CreateMap.hpp>
 #include <IO/Commands/March.hpp>
@@ -20,14 +21,18 @@
 #include <vector>
 
 template <typename Logger>
-class Game : public GameNotifier
+class SubcriptedLogger : public GameNotifier
 {
-	using PItem = std::shared_ptr<Item>;
-
 public:
-	Game(Logger& log) :
+	SubcriptedLogger(Logger& log) :
+			time(1),
 			_log(log)
 	{}
+
+	void update(Time_t t)
+	{
+		time = t;
+	}
 
 	template <class TEvent>
 	void log(TEvent&& event)
@@ -35,6 +40,7 @@ public:
 		_log.log(time, std::forward<TEvent>(event));
 	}
 
+private:
 	void notify(sw::io::UnitAttacked&& event) override
 	{
 		log(std::forward<sw::io::UnitAttacked>(event));
@@ -52,17 +58,50 @@ public:
 
 	void notify(sw::io::UnitMoved&& event) override
 	{
-		auto item = getFieldPoint(event.from);
-		placeToField(item);
-
 		log(std::forward<sw::io::UnitMoved>(event));
 	}
 
 	void notify(sw::io::UnitDied&& event) override
 	{
-		getFieldPoint(event.pos).reset();
-
 		log(std::forward<sw::io::UnitDied>(event));
+	}
+
+private:
+	Time_t time;
+	Logger& _log;
+};
+
+template <typename Logger>
+class Game : public GameNotifier
+{
+	using PItem = std::shared_ptr<Item>;
+
+public:
+	Game(Logger& log) :
+			_log(log)
+	{}
+
+	template <class TEvent>
+	void log(TEvent&& event)
+	{
+		_log.log(std::forward<TEvent>(event));
+	}
+
+	void notify(sw::io::UnitAttacked&& event) override {}
+
+	void notify(sw::io::MarchStarted&& event) override {}
+
+	void notify(sw::io::MarchEnded&& event) override {}
+
+	void notify(sw::io::UnitMoved&& event) override
+	{
+		auto item = getFieldPoint(event.from);
+		placeToField(item);
+	}
+
+	void notify(sw::io::UnitDied&& event) override
+	{
+		getFieldPoint(event.pos).reset();
 	}
 
 	void createField(const sw::io::CreateMap& command)
@@ -89,6 +128,7 @@ public:
 	void spawnSwordsman(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength)
 	{
 		auto item = std::make_shared<Swordsman>(this, uid, x, y, hp, strength);
+		item->subscribe(&_log);
 		_items.push_back(item);
 		log(sw::io::UnitSpawned{item->uid, "Swordsman", item->pos.x, item->pos.y});
 	}
@@ -101,6 +141,7 @@ public:
 	void spawnHunter(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t agility, Health_t strength, Coord_t range)
 	{
 		auto item = std::make_shared<Hunter>(this, uid, x, y, hp, strength, agility, range);
+		item->subscribe(&_log);
 		_items.push_back(item);
 		log(sw::io::UnitSpawned{item->uid, "Hunter", item->pos.x, item->pos.y});
 	}
@@ -229,6 +270,7 @@ public:
 		prepareField();
 		bool change_detected = false;
 		time += 1;
+		_log.update(time);
 		int unit_count = 0;
 		for (auto& item : _items)
 		{
@@ -253,7 +295,7 @@ public:
 private:
 	std::mt19937 gen;
 	Time_t time = 1;
-	Logger& _log;
+	SubcriptedLogger<Logger> _log;
 	std::vector<PItem> _items;
 	std::vector<PItem> _field;
 	Point _fieldsize;

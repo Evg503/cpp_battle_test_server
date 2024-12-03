@@ -48,14 +48,11 @@ struct Item : public Sender<GameNotifier>
 		}
 	}
 
-	void attaked(Health_t damage)
+	void attaked(UID_t attacker_uid, Health_t damage)
 	{
 		hp = std::max(0, hp - damage);
-	}
-
-	void checkHealth()
-	{
-		if (hp == 0)
+		notify(sw::io::UnitAttacked{attacker_uid, uid, damage, hp});
+		if (!isAlive())
 		{
 			notify(sw::io::UnitDied{uid, pos});
 		}
@@ -63,11 +60,9 @@ struct Item : public Sender<GameNotifier>
 
 	void attack(Item* victim, Health_t damage)
 	{
-		if (hp > 0)
+		if (isAlive())
 		{
-			victim->attaked(damage);
-			notify(sw::io::UnitAttacked{uid, victim->uid, damage, victim->hp});
-			victim->checkHealth();
+			victim->attaked(uid, damage);
 		}
 	}
 
@@ -112,41 +107,4 @@ struct Item : public Sender<GameNotifier>
 	{
 		return 0;
 	}
-};
-
-struct Hunter : Item
-{
-	Health_t agility;
-	Coord_t range;
-
-	Hunter(
-		GameNotifier* game,
-		UID_t uid,
-		Coord_t x,
-		Coord_t y,
-		Health_t hp,
-		Health_t strength,
-		Health_t agility,
-		Health_t range) :
-			Item(game, uid, x, y, hp, strength),
-			agility(agility),
-			range(range)
-	{}
-
-	Coord_t getRange() override
-	{
-		return range;
-	}
-
-	Coord_t getAgility() override
-	{
-		return agility;
-	}
-};
-
-struct Swordsman : Item
-{
-	Swordsman(GameNotifier* game, UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength) :
-			Item(game, uid, x, y, hp, strength)
-	{}
 };
