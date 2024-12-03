@@ -23,7 +23,7 @@
 #include <vector>
 
 template <typename Logger>
-class Game : public GameNotifier
+class Game : public FieldNodifier
 {
 	using PItem = std::shared_ptr<Item>;
 
@@ -39,13 +39,6 @@ public:
 	{
 		_log.log(std::forward<TEvent>(event));
 	}
-
-	void notify(sw::io::UnitAttacked&& event) override {}
-
-	void notify(sw::io::MarchStarted&& event) override {}
-
-	void notify(sw::io::MarchEnded&& event) override {}
-	void notify(sw::io::MapCreated&& event) override {}
 
 	void notify(sw::io::UnitMoved&& event) override
 	{

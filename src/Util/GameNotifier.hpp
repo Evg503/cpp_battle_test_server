@@ -10,11 +10,19 @@
 #include <IO/Events/UnitMoved.hpp>
 #include <IO/Events/UnitSpawned.hpp>
 
-using GameNotifier = Notifier<
+using FieldNodifier = Notifier<sw::io::UnitMoved, sw::io::UnitDied, sw::io::UnitSpawned>;
+
+using OterNotifier = Notifier<
 	sw::io::MarchStarted,
 	sw::io::MarchEnded,
-	sw::io::UnitMoved,
-	sw::io::UnitDied,
 	sw::io::UnitAttacked,
-	sw::io::UnitSpawned,
 	sw::io::MapCreated>;
+
+class GameNotifier :public FieldNodifier, public OterNotifier
+{
+    public:
+    using FieldNodifier::notify;
+    using OterNotifier::notify;
+
+};
+

@@ -12,15 +12,19 @@ int sign(T v)
 }
 
 
-struct Item : public Sender<GameNotifier>
+struct Item : public Sender<FieldNodifier>, public Sender<OterNotifier>
 {
+    using Sender<FieldNodifier>::subscribe;
+    using Sender<OterNotifier>::subscribe;
+    using Sender<FieldNodifier>::notify;
+    using Sender<OterNotifier>::notify;
 	UID_t uid;
 	Point pos;
 	Point target;
 	Health_t hp;
 	Health_t strength;
 
-	Item(GameNotifier* game, UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength) :
+	Item(FieldNodifier* game, UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength) :
 			uid(uid),
 			pos{x, y},
 			target{x, y},
@@ -29,6 +33,11 @@ struct Item : public Sender<GameNotifier>
 	{
 		subscribe(game);
 	}
+    void subscribe(GameNotifier* obj)
+    {
+		Sender<FieldNodifier>::subscribe(static_cast<FieldNodifier*> (obj));
+		Sender<OterNotifier>::subscribe(obj);
+    }
 
 	virtual ~Item() {}
 

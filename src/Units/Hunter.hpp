@@ -8,7 +8,7 @@ struct Hunter : Item
 	Coord_t range;
 
 	Hunter(
-		GameNotifier* game,
+		FieldNodifier* game,
 		UID_t uid,
 		Coord_t x,
 		Coord_t y,
