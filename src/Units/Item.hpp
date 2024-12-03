@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Units/types.hpp"
+#include "notifier.hpp"
 
 #include <IO/Events/MarchEnded.hpp>
 #include <IO/Events/MarchStarted.hpp>
@@ -15,35 +16,35 @@ int sign(T v)
 	return (T(0) < v) - (v < T(0));
 }
 
+using GameNotifier = Notifier<sw::io::MarchStarted&&>;
+
 template <typename Game>
-struct Item
+struct Item : public Sender<GameNotifier>
 {
 	UID_t uid;
-
 	Point pos;
-
 	Point target;
-
 	Health_t hp;
-
 	Health_t strength;
 
-	Item(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength) :
+	Item(GameNotifier* game, UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength) :
 			uid(uid),
 			pos{x, y},
 			target{x, y},
 			hp(hp),
 			strength(strength)
-	{}
+	{
+		subscribe(game);
+	}
 
 	virtual ~Item() {}
 
-	void march(Game& game, Point new_target)
+	void march(Point new_target)
 	{
 		if (target != new_target)
 		{
 			target = new_target;
-			game.log(sw::io::MarchStarted{uid, pos.x, pos.y, target.x, target.y});
+			notify(sw::io::MarchStarted{uid, pos.x, pos.y, target.x, target.y});
 		}
 	}
 
@@ -65,7 +66,7 @@ struct Item
 		if (hp > 0)
 		{
 			victim->attaked(damage);
-			game.log(sw::io::UnitAttacked{uid, victim->uid, damage, victim->hp});
+			game.notify(sw::io::UnitAttacked{uid, victim->uid, damage, victim->hp});
 			victim->checkHealth(game);
 		}
 	}
@@ -119,8 +120,8 @@ struct Hunter : Item<Game>
 	Health_t agility;
 	Coord_t range;
 
-	Hunter(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength, Health_t agility, Health_t range) :
-			Item<Game>(uid, x, y, hp, strength),
+	Hunter(GameNotifier *game,UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength, Health_t agility, Health_t range) :
+			Item<Game>(game,uid, x, y, hp, strength),
 			agility(agility),
 			range(range)
 	{}
@@ -139,7 +140,7 @@ struct Hunter : Item<Game>
 template <typename Game>
 struct Swordsman : Item<Game>
 {
-	Swordsman(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength) :
-			Item<Game>(uid, x, y, hp, strength)
+	Swordsman(GameNotifier *game, UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength) :
+			Item<Game>(game,uid, x, y, hp, strength)
 	{}
 };

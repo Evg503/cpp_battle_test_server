@@ -20,7 +20,7 @@
 #include <vector>
 
 template <typename Logger>
-class Game
+class Game : public GameNotifier
 {
 	using Item = Item<Game>;
 	using PItem = std::shared_ptr<Item>;
@@ -42,6 +42,10 @@ public:
 		log(std::forward<TEvent>(event));
 	}
 
+	void notify(sw::io::MarchStarted&& event) override
+	{
+		log(std::forward<sw::io::MarchStarted>(event));
+	}
 	template <>
 	void notify(sw::io::UnitMoved&& event)
 	{
@@ -52,7 +56,7 @@ public:
 	}
 
 	template <>
-	void notify(sw::io::UnitDied&& event)
+	void notify(sw::io::UnitDied&& event) //override
 	{
 		getFieldPoint(event.pos).reset();
 
@@ -82,7 +86,7 @@ public:
 
 	void spawnSwordsman(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t strength)
 	{
-		auto item = std::make_shared<Swordsman<Game>>(uid, x, y, hp, strength);
+		auto item = std::make_shared<Swordsman<Game>>(this, uid, x, y, hp, strength);
 		_items.push_back(item);
 		log(sw::io::UnitSpawned{item->uid, "Swordsman", item->pos.x, item->pos.y});
 	}
@@ -94,7 +98,7 @@ public:
 
 	void spawnHunter(UID_t uid, Coord_t x, Coord_t y, Health_t hp, Health_t agility, Health_t strength, Coord_t range)
 	{
-		auto item = std::make_shared<Hunter<Game>>(uid, x, y, hp, strength, agility, range);
+		auto item = std::make_shared<Hunter<Game>>(this, uid, x, y, hp, strength, agility, range);
 		_items.push_back(item);
 		log(sw::io::UnitSpawned{item->uid, "Hunter", item->pos.x, item->pos.y});
 	}
@@ -129,7 +133,7 @@ public:
 	void march(UID_t uid, Coord_t target_x, Coord_t target_y)
 	{
 		auto item = getItem(uid);
-		item->march(*this, Point{target_x, target_y});
+		item->march(Point{target_x, target_y});
 	}
 
 	Coord_t distance(const PItem lhs, const PItem rhs)
