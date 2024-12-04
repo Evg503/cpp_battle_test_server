@@ -3,19 +3,12 @@
 #include "Units/Item.hpp"
 #include "Util/GameNotifier.hpp"
 
+#include <IField.hpp>
 #include <iostream>
 #include <memory>
 #include <vector>
 
-using PItem = std::shared_ptr<Item>;
-
-class Neighbor
-{
-public:
-	virtual std::vector<PItem> getNeighbors(const PItem main_item, Coord_t min_d, Coord_t max_d) = 0;
-};
-
-class GameField : public Sender<GameNotifier>, public Neighbor
+class GameField : public Sender<GameNotifier>, public FieldInterface
 {
 private:
 	std::vector<PItem> _items;
@@ -49,12 +42,6 @@ public:
 		}
 		cell = item;
 	}
-
-	Coord_t distance(const PItem lhs, const PItem rhs)
-	{
-		return ::distance(lhs->pos, rhs->pos);
-	}
-
 	PItem& getFieldPoint(Point pos)
 	{
 		auto x = pos.x;
@@ -97,7 +84,7 @@ public:
 		}
 	}
 
-	std::vector<PItem> getNeighbors(const PItem main_item, Coord_t min_d, Coord_t max_d)
+	std::vector<PItem> getNeighbors(const Item* main_item, Coord_t min_d, Coord_t max_d) override
 	{
 		std::vector<PItem> result;
 		auto begin_x = std::clamp(0, main_item->pos.x - max_d, _fieldsize.x - 1);
@@ -111,8 +98,8 @@ public:
 			for (Coord_t x = begin_x; x <= end_x; ++x)
 			{
 				auto item = getFieldPoint({x, y});
-				if (item && item != main_item && item->isAttacable()
-					&& less_eq3(min_d, distance(main_item, item), max_d))
+				if (item && item.get() != main_item && item->isAttacable()
+					&& less_eq3(min_d, distance(main_item->pos, item->pos), max_d))
 				{
 					result.push_back(item);
 				}

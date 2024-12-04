@@ -141,7 +141,7 @@ public:
 		assert(neighbors.size() == 9);
 
 		game.march(20, 9, 9);
-		while (i55->move())
+		while (i55->doActions())
 		{
 		}
 		neighbors = game.getNeighbors(i33, 2, 5);

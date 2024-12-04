@@ -4,11 +4,9 @@
 
 struct Hunter : Item
 {
-	Health_t agility;
-	Coord_t range;
-
 	Hunter(
 		FieldNodifier* game,
+		FieldInterface* field,
 		UID_t uid,
 		Coord_t x,
 		Coord_t y,
@@ -16,20 +14,23 @@ struct Hunter : Item
 		Health_t strength,
 		Health_t agility,
 		Health_t range) :
-			Item(game, uid, x, y, hp, strength),
-			agility(agility),
-			range(range)
+			Item(game, uid, x, y, hp),
+			nearFight(field, this, strength, 1, 1),
+			farFight(field, this, agility, 2, range)
 	{
 		notify_all(sw::io::UnitSpawned{uid, "Hunter", pos.x, pos.y});
 	}
 
-	Coord_t getRange() override
+	virtual bool doActions() override
 	{
-		return range;
+		if (isAlive())
+		{
+			return nearFight() || farFight() || move_action();
+		}
+		return false;
 	}
 
-	Coord_t getAgility() override
-	{
-		return agility;
-	}
+private:
+	AttackAction nearFight;
+	AttackAction farFight;
 };
